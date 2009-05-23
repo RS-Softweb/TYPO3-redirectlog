@@ -48,7 +48,7 @@ class tx_redirectlog_pi1 extends tslib_pibase {
 	 *
 	 * @param	string		$content: The PlugIn content
 	 * @param	array		$conf: The PlugIn configuration
-	 * @return	The content that is displayed on the website
+	 * @return	string	The content that is displayed on the website
 	 */
 	function main($content, $conf)	{
 		return 'Hello World!<HR>
