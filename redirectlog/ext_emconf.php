@@ -3,7 +3,7 @@
 ########################################################################
 # Extension Manager/Repository config file for ext: "redirectlog"
 #
-# Auto generated 23-05-2009 20:19
+# Auto generated 25-05-2009 23:14
 #
 # Manual updates:
 # Only the data in the array - anything else is removed by next write.

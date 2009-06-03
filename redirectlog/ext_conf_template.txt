@@ -1,0 +1,21 @@
+# cat=basic/enable/100; type=boolean; label= Debug enabled: If enabled, some debug messages are shown.
+debug = 1
+
+# cat=basic/enable/101; type=boolean; label= Warning email on redirections: If enabled an email is send to the given adress.
+enable_warning_redirect = 0
+# cat=basic/enable/102; type=boolean; label= Warning email if page not found: If enabled an email is send to the given adress.
+enable_warning_notfound = 0
+
+# cat=basic/enable/111; type=string; label= Name of the email recipient:Can be empty.
+recipient_name = 
+# cat=basic/enable/112; type=string; label= Emailadress of the recipient:If empty i use the value of '$TYPO3_CONF_VARS['BE']['warning_email_addr']'.
+recipient_mail = 
+
+# cat=basic/enable/121; type=string; label= Name of the email sender:Can be empty.
+sender_name = 
+# cat=basic/enable/122; type=string; label= Emailadress of the sender:If empty i use the value of '$TYPO3_CONF_VARS['BE']['warning_email_addr']'.
+sender_mail = 
+
+# cat=basic/file/101; type=string; label= Template file for emails:If empty i use the default file from extension dir.
+mail_templates_file = 
+

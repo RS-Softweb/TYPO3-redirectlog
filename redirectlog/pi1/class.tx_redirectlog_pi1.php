@@ -24,10 +24,26 @@
 /**
  * [CLASS/FUNCTION INDEX of SCRIPT]
  *
- * Hint: use extdeveval to insert/update function index above.
+ *
+ *
+ *   56: class tx_redirectlog_pi1
+ *   88:     function init()
+ *  109:     function main($param,$ref)
+ *  154:     function checkError($param)
+ *  168:     function isValid($starttime, $endtime)
+ *  187:     function fillArray($query)
+ *  214:     function getMailTemplate($headertype)
+ *  249:     function sendMail($request_url,$replace_url,$headertype)
+ *  302:     function get_page_url($pid,$addParams=array())
+ *
+ * TOTAL FUNCTIONS: 8
+ * (This index is automatically created/updated by the extension "extdeveval")
+ *
  */
 
 require_once(PATH_tslib.'class.tslib_pibase.php');
+include_once(PATH_tslib.'class.tslib_content.php');
+
 
 
 /**
@@ -37,27 +53,306 @@ require_once(PATH_tslib.'class.tslib_pibase.php');
  * @package	TYPO3
  * @subpackage	tx_redirectlog
  */
-class tx_redirectlog_pi1 extends tslib_pibase {
+class tx_redirectlog_pi1 {
 	var $prefixId      = 'tx_redirectlog_pi1';		// Same as class name
 	var $scriptRelPath = 'pi1/class.tx_redirectlog_pi1.php';	// Path to this script relative to the extension dir.
 	var $extKey        = 'redirectlog';	// The extension key.
 	var $pi_checkCHash = true;
-	
+
+	var $debug = False;
+
+	var $headertext = array(
+		'301'=>'HTTP/1.1 301 Moved Permanently',
+		'302'=>'HTTP/1.1 302 Moved Temporarily',
+		'403'=>'HTTP/1.1 403 Forbidden',
+		'404'=>'HTTP/1.1 404 Not Found',
+		'503'=>'HTTP/1.1 503 Service Unavailable'
+	);
+	var $arrReplacement = array (
+		'Request' => array(),
+		'Replace' => array(),
+		'Header' => array()
+	);
+	var $server_name = '';
+	var $server_path = '';
+
+	var $fields_1_select = 'old_url,new_url,new_pageid,header,partitial,starttime,endtime';
+	var $fields_1_where = 'hidden=0 AND deleted=0';
+
+
+	/**
+	 * Initiates some objects and vars
+	 *
+	 * @return	void
+	 */
+	function init() {
+		// create helping objects
+		$GLOBALS['TSFE']->newCObj();
+		$GLOBALS['TSFE']->initTemplate();
+		// get the extension-manager configuration
+		$this->extConf = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this->extKey]);
+		$this->debug = $this->extConf['debug'];
+		// set vars
+		$this->server_name = 'http://'.$_SERVER['SERVER_NAME'];
+		$this->server_path = '/fehler/seite-nicht-gefunden/';
+		// initiate db object
+		$this->db = $GLOBALS['TYPO3_DB'];
+	}
+
 	/**
 	 * The main method of the PlugIn
 	 *
-	 * @param	string		$content: The PlugIn content
-	 * @param	array		$conf: The PlugIn configuration
-	 * @return	string	The content that is displayed on the website
+	 * @param	array		$param - Array with link params
+	 * @param	array		$ref -
+	 * @return	void
 	 */
-	function main($content, $conf)	{
-		return 'Hello World!<HR>
-			Here is the TypoScript passed to the method:'.
-					t3lib_div::view_array($conf);
+	function main($param,$ref)	{
+		$this->init();
+
+		// first check for special sites (header code 403 or 503)
+		$headertype = $this->checkError($param);
+
+		// if special site requested
+		if (in_array($headertype, array('403', '503'))) {
+			// get the redirections from db
+			$query = $this->db->exec_SELECTquery($this->fields_1_select, 'tx_redirectlog_urls', $this->fields_1_where." AND old_url='".$headertype."'" );
+			$this->fillArray($query);
+			if ($this->debug) {t3lib_div::debug($this->arrReplacement);}
+			
+			$request_url = $param['currentUrl'];
+			$replace_url = $this->arrReplacement['Replace'][0];
+		} else {
+			// get the redirections from db
+			$query = $this->db->exec_SELECTquery($this->fields_1_select, 'tx_redirectlog_urls', $this->fields_1_where );
+			$this->fillArray($query);
+	
+			$request_url = $param['currentUrl'];
+	
+			$replace_url = str_replace($this->arrReplacement['Request'],$this->arrReplacement['Replace'],$request_url);
+			$replace_url = strtolower($replace_url);
+	
+			for ($i=0; $i < count($this->arrReplacement['Request']); $i++)
+			{
+				$pos = strpos($request_url,$this->arrReplacement['Request'][$i]);
+				if (($pos === false))
+				{
+					$umleitung=false;
+					$headertype='404';
+				} else {
+					$umleitung=true;
+					$headertype=$this->arrReplacement['Header'][$i];
+					break;
+				}
+			}
+		}
+		
+		if ((in_array($headertype, array('301', '302'))) && ($this->extConf['enable_warning_redirect'])) {
+			$this->sendMail($request_url,$replace_url,$headertype);
+		} elseif ((in_array($headertype, array('403', '404'))) && ($this->extConf['enable_warning_notfound'])) {
+			$this->sendMail($request_url,$replace_url,$headertype);
+		}
+	}
+
+
+	/**
+	 * Checks for special error codes (header 403 or 503)
+	 *
+	 * @param	array		Array with link params
+	 * @return	string		The sugested errorcode
+	 */
+	function checkError($param) {
+		if (!(in_Array('0',$param['pageAccessFailureReasons']['fe_group']))) {
+			return '403';
+		}
+	}
+
+
+	/**
+	 * This function checks if a url replacement is valid
+	 *
+	 * @param	integer		The starttime of this row
+	 * @param	integer		The endtime of this row
+	 * @return	boolean		True if valid, False if not valid
+	 */
+	function isValid($starttime, $endtime) {
+		if ( ($starttime == 0 && $endtime == 0 ) ||
+			 ($starttime == 0 && date('Y-m-d',$endtime) >= date('Y-m-d',strtotime(date("Y-m-d"))) ) ||
+			 (date('Y-m-d',$starttime) <= date('Y-m-d',strtotime(date("Y-m-d"))) && $endtime == 0 ) ||
+			 (date('Y-m-d',$starttime) <= date('Y-m-d',strtotime(date("Y-m-d"))) && date('Y-m-d',$endtime) >= date('Y-m-d',strtotime(date("Y-m-d"))) ) )
+		{
+			return True;
+		} else {
+			return False;
+		}
+
+	}
+
+	/**
+	 * This function fills array with the replacements
+	 *
+	 * @param	pointer		Pointer to the Query
+	 * @return	void
+	 */
+	function fillArray($query) {
+		$count = $this->db->sql_num_rows($query);
+		if ($count > 0) {
+			for ($i=0;$i<$count;$i++) {
+				$row = $this->db->sql_fetch_assoc($query);
+				if ($this->isValid($row['starttime'],$row['endtime'])) {
+					$this->arrReplacement['Request'][] = $row['old_url'];
+					if ($row['partitial']== 1) {
+						echo "partitial ";
+						$this->arrReplacement['Replace'][] = $row['new_url'];
+					} elseif ($row['new_pageid']>0) {
+						echo "newpage ";
+						$this->arrReplacement['Replace'][] = $this->get_page_url($row['new_pageid']);
+					} else {
+						echo "nopartitial ";
+						$this->arrReplacement['Replace'][] = $row['new_url'];
+					}
+					$this->arrReplacement['Header'][] = $row['header'];
+				}
+			}
+		}
+	}
+
+
+	/**
+	 * Gets the templates for mails
+	 *
+	 * @param	string		The headertype
+	 * @return	boolean		True if template found, False if template not found or incomplete
+	 */
+	function getMailTemplate($headertype) {
+		// Get the Mail templates.
+		if(strlen($this->extConf['mail_templates_file']) < 1) $this->extConf['mail_templates_file'] = t3lib_extMgm::siteRelPath($this->extKey).'res/'.'redirect_mail.tmpl';
+		$this->templateCode = $GLOBALS['TSFE']->cObj->fileResource($this->extConf['mail_templates_file']);
+		// Get the subparts from the Mail template.
+		if($this->templateCode) {
+			$this->mailTemplate['all'] = $GLOBALS['TSFE']->cObj->getSubpart($this->templateCode, '###TEMPLATE_MAIL_'.$headertype.'###');
+			$this->mailTemplate['subject'] = $GLOBALS['TSFE']->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_SUBJECT###');
+			$this->mailTemplate['text'] = $GLOBALS['TSFE']->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_TEXT###');
+			if ($this->debug) {t3lib_div::debug($this->mailTemplate);}
+		} else {
+			if ($this->debug) {t3lib_div::debug('No template code found!');}
+		}
+		if (($this->mailTemplate['subject']=='') || ($this->mailTemplate['text']=='')) {
+			if (($this->mailTemplate['subject']=='') && ($this->debug)) {
+				$this->mailTemplate['subject'] = $this->extKey.' - WARNING/DEBUG - No subject in the template found for header '.$this->headertext[$headertype];
+			}
+			if (($this->mailTemplate['text']=='') && ($this->debug)) {
+				$this->mailTemplate['text'] = $this->extKey.' - WARNING/DEBUG - No bodytext in the template found for header '.$this->headertext[$headertype];
+			}
+			return False;
+		} else {
+			return True;
+		}
+	}
+
+
+	/**
+	 * Generates and sends email to the given email or the admins adress
+	 *
+	 * @param	string		The requested url
+	 * @param	string		The replaced url
+	 * @param	string		The header type
+	 * @return	void
+	 */
+	function sendMail($request_url,$replace_url,$headertype) {
+		$timestamp = time();
+
+		if ($this->extConf['sender_mail']=='') {
+			$sender = $GLOBALS['TYPO3_CONF_VARS']['BE']['warning_email_addr'];
+		} elseif ($this->extConf['sender_name']=='') {
+			$sender = $this->extConf['sender_mail'];
+		} else {
+			$sender = $this->extConf['sender_name'].' <'.$this->extConf['sender_mail'].'>';
+		}
+		if ($this->extConf['recipient_mail']=='') {
+			$recipient = $GLOBALS['TYPO3_CONF_VARS']['BE']['warning_email_addr'];
+		} elseif ($this->extConf['recipient_name']=='') {
+			$recipient = $this->extConf['recipient_mail'];
+		} else {
+			$recipient = $this->extConf['recipient_name'].' <'.$this->extConf['recipient_mail'].'>';
+		}
+
+		$templatefound = $this->getMailTemplate($headertype);
+		if (($templatefound) || ($this->debug)) {
+			$markerArray = array();
+			$markerArray['###request###'] = $this->server_name.$request_url;
+			$markerArray['###replace###'] = $this->server_name.$replace_url;
+			$markerArray['###send_header###'] = $this->headertext[$headertype];
+			$markerArray['###date###'] = date("d.m.Y",$timestamp);
+			$markerArray['###time###'] = date("H:i:s",$timestamp);
+			$markerArray['###referer###'] = addslashes($_SERVER['HTTP_REFERER']);
+			$markerArray['###remote_browser###'] = $_SERVER['HTTP_USER_AGENT'];
+			$markerArray['###remote_ip###'] = $_SERVER['REMOTE_ADDR'];
+			$markerArray['###remote_name###'] = gethostbyaddr($_SERVER['REMOTE_ADDR']);
+			if ($this->debug) {t3lib_div::debug($markerArray);}
+
+			$subject = $GLOBALS['TSFE']->cObj->substituteMarkerArray($this->mailTemplate['subject'], $markerArray);
+			$text = $GLOBALS['TSFE']->cObj->substituteMarkerArray($this->mailTemplate['text'], $markerArray);
+
+			$extra = "From: ".$sender."\n";
+			$extra .= "X-Priority: 3\n";
+
+			if ($GLOBALS['TYPO3_CONF_VARS']['SYS']['forceReturnPath'] = '1') {
+				mail($recipient, $subject, $text, $extra, '-f'.$GLOBALS['TYPO3_CONF_VARS']['BE']['warning_email_addr']);
+			} else {
+				mail($recipient, $subject, $text, $extra);
+			}
+		}
+	}
+
+	/**
+	 * Generates an URL throw an FE Object
+	 *
+	 * @param	integer		page uid
+	 * @param	array		additionaly parameters
+	 * @return	string		URL
+	 */
+	function get_page_url($pid,$addParams=array()){
+echo "test ";
+		global $TYPO3_CONF_VARS;
+
+		if(!is_object($GLOBALS['TSFE'])) {
+			require_once(PATH_t3lib.'class.t3lib_timetrack.php');
+			if(!is_object($GLOBALS['TT'])){
+				$GLOBALS['TT'] = new t3lib_timeTrack;
+				$GLOBALS['TT']->start();
+			}
+			require_once(PATH_t3lib.'class.t3lib_page.php');
+			require_once(PATH_t3lib.'class.t3lib_userauth.php');
+			require_once(PATH_tslib.'class.tslib_feuserauth.php');
+			require_once(PATH_t3lib.'class.t3lib_tstemplate.php');
+			require_once(PATH_t3lib.'class.t3lib_cs.php');
+
+			$temp_TSFEclassName = t3lib_div::makeInstanceClassName('tslib_fe');
+			$GLOBALS['TSFE'] = new $temp_TSFEclassName(
+				$TYPO3_CONF_VARS,
+				$pid,
+				0,
+				t3lib_div::_GP('no_cache'),
+				t3lib_div::_GP('cHash'),
+				t3lib_div::_GP('jumpurl'),
+				t3lib_div::_GP('MP'),
+				t3lib_div::_GP('RDCT')
+			);
+		}
+
+		#debug($GLOBALS['TSFE']);
+		$GLOBALS['TSFE']->id=$pid;
+		$GLOBALS['TSFE']->initFEuser();
+//		$GLOBALS['TSFE']->determineId(); //
+		$GLOBALS['TSFE']->getPageAndRootline();
+//		$GLOBALS['TSFE']->initTemplate();//
+		$GLOBALS['TSFE']->getConfigArray();
+
+		$page = $GLOBALS['TSFE']->sys_page->getPage($pid);
+		$url =  $GLOBALS['TSFE']->tmpl->linkData($page,"self",0,'',$overrideArray='',$addParams,$typeOverride='');
+		return $url['totalURL'];
 	}
 }
-
-
 
 if (defined('TYPO3_MODE') && $TYPO3_CONF_VARS[TYPO3_MODE]['XCLASS']['ext/redirectlog/pi1/class.tx_redirectlog_pi1.php'])	{
 	include_once($TYPO3_CONF_VARS[TYPO3_MODE]['XCLASS']['ext/redirectlog/pi1/class.tx_redirectlog_pi1.php']);

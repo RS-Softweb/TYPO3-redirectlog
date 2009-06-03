@@ -98,11 +98,11 @@ $TCA['tx_redirectlog_urls'] = array (
 			'config' => array (
 				'type' => 'select',
 				'items' => array (
-					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.0', '0', t3lib_extMgm::extRelPath('redirectlog').'res/selicon_tx_redirectlog_urls_301.gif'),
-					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.1', '1', t3lib_extMgm::extRelPath('redirectlog').'res/selicon_tx_redirectlog_urls_302.gif'),
-					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.2', '2', t3lib_extMgm::extRelPath('redirectlog').'res/selicon_tx_redirectlog_urls_403.gif'),
-					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.3', '3', t3lib_extMgm::extRelPath('redirectlog').'res/selicon_tx_redirectlog_urls_404.gif'),
-					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.4', '4', t3lib_extMgm::extRelPath('redirectlog').'res/selicon_tx_redirectlog_urls_503.gif'),
+					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.0', '301', t3lib_extMgm::extRelPath('redirectlog').'selicon_tx_redirectlog_urls_header_0.gif'),
+					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.1', '302', t3lib_extMgm::extRelPath('redirectlog').'selicon_tx_redirectlog_urls_header_1.gif'),
+					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.2', '403', t3lib_extMgm::extRelPath('redirectlog').'selicon_tx_redirectlog_urls_header_2.gif'),
+					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.3', '404', t3lib_extMgm::extRelPath('redirectlog').'selicon_tx_redirectlog_urls_header_3.gif'),
+					array('LLL:EXT:redirectlog/locallang_db.xml:tx_redirectlog_urls.header.I.4', '503', t3lib_extMgm::extRelPath('redirectlog').'selicon_tx_redirectlog_urls_header_4.gif'),
 				),
 				'size' => 1,	
 				'maxitems' => 1,
