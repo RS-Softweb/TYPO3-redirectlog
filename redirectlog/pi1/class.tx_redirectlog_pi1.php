@@ -27,24 +27,24 @@
  *
  *
  *   56: class tx_redirectlog_pi1
- *   88:     function init()
- *  109:     function main($param,$ref)
- *  154:     function checkError($param)
- *  168:     function isValid($starttime, $endtime)
- *  187:     function fillArray($query)
- *  214:     function getMailTemplate($headertype)
- *  249:     function sendMail($request_url,$replace_url,$headertype)
- *  302:     function get_page_url($pid,$addParams=array())
+ *   89:     function init($ref)
+ *  110:     function main($param,$ref)
+ *  198:     function checkError($param)
+ *  210:     function getError($headertype)
+ *  224:     function isValid($starttime, $endtime)
+ *  243:     function fillArray($query)
+ *  268:     function clearArray()
+ *  281:     function getMailTemplate($headertype)
+ *  316:     function sendMail($request_url,$replace_url,$headertype)
+ *  369:     function get_page_url($pid,$addParams=array())
  *
- * TOTAL FUNCTIONS: 8
+ * TOTAL FUNCTIONS: 10
  * (This index is automatically created/updated by the extension "extdeveval")
  *
  */
 
 require_once(PATH_tslib.'class.tslib_pibase.php');
 include_once(PATH_tslib.'class.tslib_content.php');
-
-
 
 /**
  * Plugin 'Redirection' for the 'redirectlog' extension.
@@ -83,18 +83,19 @@ class tx_redirectlog_pi1 {
 	/**
 	 * Initiates some objects and vars
 	 *
+	 * @param	array		Parent object
 	 * @return	void
 	 */
-	function init() {
+	function init($ref) {
 		// create helping objects
-		$GLOBALS['TSFE']->newCObj();
-		$GLOBALS['TSFE']->initTemplate();
+		$this->ref = $ref;
+		$this->ref->newCObj();
+		$this->ref->initTemplate();
 		// get the extension-manager configuration
 		$this->extConf = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this->extKey]);
 		$this->debug = $this->extConf['debug'];
 		// set vars
 		$this->server_name = 'http://'.$_SERVER['SERVER_NAME'];
-		$this->server_path = '/fehler/seite-nicht-gefunden/';
 		// initiate db object
 		$this->db = $GLOBALS['TYPO3_DB'];
 	}
@@ -103,11 +104,13 @@ class tx_redirectlog_pi1 {
 	 * The main method of the PlugIn
 	 *
 	 * @param	array		$param - Array with link params
-	 * @param	array		$ref -
+	 * @param	array		$ref - Parent object
 	 * @return	void
 	 */
 	function main($param,$ref)	{
-		$this->init();
+//		var_dump($ref);
+		$this->init($ref);
+		if ($this->debug) {t3lib_div::debug($param);}
 
 		// first check for special sites (header code 403 or 503)
 		$headertype = $this->checkError($param);
@@ -115,22 +118,20 @@ class tx_redirectlog_pi1 {
 		// if special site requested
 		if (in_array($headertype, array('403', '503'))) {
 			// get the redirections from db
-			$query = $this->db->exec_SELECTquery($this->fields_1_select, 'tx_redirectlog_urls', $this->fields_1_where." AND old_url='".$headertype."'" );
-			$this->fillArray($query);
-			if ($this->debug) {t3lib_div::debug($this->arrReplacement);}
-			
+			$this->getError($headertype);
+
 			$request_url = $param['currentUrl'];
 			$replace_url = $this->arrReplacement['Replace'][0];
 		} else {
 			// get the redirections from db
 			$query = $this->db->exec_SELECTquery($this->fields_1_select, 'tx_redirectlog_urls', $this->fields_1_where );
 			$this->fillArray($query);
-	
+
 			$request_url = $param['currentUrl'];
-	
+
 			$replace_url = str_replace($this->arrReplacement['Request'],$this->arrReplacement['Replace'],$request_url);
 			$replace_url = strtolower($replace_url);
-	
+
 			for ($i=0; $i < count($this->arrReplacement['Request']); $i++)
 			{
 				$pos = strpos($request_url,$this->arrReplacement['Request'][$i]);
@@ -144,12 +145,46 @@ class tx_redirectlog_pi1 {
 					break;
 				}
 			}
+
+			if (!($umleitung)) {
+				$this->clearArray();
+				$this->getError($headertype);
+				$replace_url = $this->arrReplacement['Replace'][0];
+			}
 		}
-		
+
 		if ((in_array($headertype, array('301', '302'))) && ($this->extConf['enable_warning_redirect'])) {
 			$this->sendMail($request_url,$replace_url,$headertype);
+			sleep(1);
 		} elseif ((in_array($headertype, array('403', '404'))) && ($this->extConf['enable_warning_notfound'])) {
 			$this->sendMail($request_url,$replace_url,$headertype);
+		}
+
+		switch ($headertype) {
+			case '301':
+			case '302':
+			case '503':
+				$headertext = $this->headertext[$headertype];
+				header("$headertext");
+				header("Location:$this->server_name$replace_url");
+				header("Connection: close");
+				break;
+			case '403':
+			case '404':
+				$headertext = $this->headertext[$headertype];
+				header("$headertext");
+				$handle = fopen($this->server_name.$replace_url, "r");
+				if ($handle) {
+					while (!feof($handle)) {
+						$buffer = fgets($handle);
+						$buffer = str_replace('###URL###',$this->server_name.$request_url,$buffer);
+						$buffer = str_replace('###REFERER###',($_SERVER['HTTP_REFERER']!='') ? $_SERVER['HTTP_REFERER'] : '"..."',$buffer);
+						echo $buffer;
+					}
+					fclose ($handle);
+				}
+				header("Connection: close");
+				break;
 		}
 	}
 
@@ -164,6 +199,18 @@ class tx_redirectlog_pi1 {
 		if (!(in_Array('0',$param['pageAccessFailureReasons']['fe_group']))) {
 			return '403';
 		}
+	}
+
+	/**
+	 * Get vars for special error codes (header 403, 404 or 503)
+	 *
+	 * @param	array		Array with link params
+	 * @return	void
+	 */
+	function getError($headertype) {
+			$query = $this->db->exec_SELECTquery($this->fields_1_select, 'tx_redirectlog_urls', $this->fields_1_where.' AND old_url='.$headertype.'' );
+			$this->fillArray($query);
+			if ($this->debug) {t3lib_div::debug($this->arrReplacement);}
 	}
 
 
@@ -201,19 +248,27 @@ class tx_redirectlog_pi1 {
 				if ($this->isValid($row['starttime'],$row['endtime'])) {
 					$this->arrReplacement['Request'][] = $row['old_url'];
 					if ($row['partitial']== 1) {
-						echo "partitial ";
 						$this->arrReplacement['Replace'][] = $row['new_url'];
 					} elseif ($row['new_pageid']>0) {
-						echo "newpage ";
-						$this->arrReplacement['Replace'][] = $this->get_page_url($row['new_pageid']);
+						$this->arrReplacement['Replace'][] = '/'.$this->get_page_url($row['new_pageid']);
 					} else {
-						echo "nopartitial ";
 						$this->arrReplacement['Replace'][] = $row['new_url'];
 					}
 					$this->arrReplacement['Header'][] = $row['header'];
 				}
 			}
 		}
+	}
+
+	/**
+	 * This function clears array with the replacements
+	 *
+	 * @return	void
+	 */
+	function clearArray() {
+		$this->arrReplacement['Request']=array();
+		$this->arrReplacement['Replace']=array();
+		$this->arrReplacement['Header']=array();
 	}
 
 
@@ -226,12 +281,12 @@ class tx_redirectlog_pi1 {
 	function getMailTemplate($headertype) {
 		// Get the Mail templates.
 		if(strlen($this->extConf['mail_templates_file']) < 1) $this->extConf['mail_templates_file'] = t3lib_extMgm::siteRelPath($this->extKey).'res/'.'redirect_mail.tmpl';
-		$this->templateCode = $GLOBALS['TSFE']->cObj->fileResource($this->extConf['mail_templates_file']);
+		$this->templateCode = $this->ref->cObj->fileResource($this->extConf['mail_templates_file']);
 		// Get the subparts from the Mail template.
 		if($this->templateCode) {
-			$this->mailTemplate['all'] = $GLOBALS['TSFE']->cObj->getSubpart($this->templateCode, '###TEMPLATE_MAIL_'.$headertype.'###');
-			$this->mailTemplate['subject'] = $GLOBALS['TSFE']->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_SUBJECT###');
-			$this->mailTemplate['text'] = $GLOBALS['TSFE']->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_TEXT###');
+			$this->mailTemplate['all'] = $this->ref->cObj->getSubpart($this->templateCode, '###TEMPLATE_MAIL_'.$headertype.'###');
+			$this->mailTemplate['subject'] = $this->ref->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_SUBJECT###');
+			$this->mailTemplate['text'] = $this->ref->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_TEXT###');
 			if ($this->debug) {t3lib_div::debug($this->mailTemplate);}
 		} else {
 			if ($this->debug) {t3lib_div::debug('No template code found!');}
@@ -290,8 +345,8 @@ class tx_redirectlog_pi1 {
 			$markerArray['###remote_name###'] = gethostbyaddr($_SERVER['REMOTE_ADDR']);
 			if ($this->debug) {t3lib_div::debug($markerArray);}
 
-			$subject = $GLOBALS['TSFE']->cObj->substituteMarkerArray($this->mailTemplate['subject'], $markerArray);
-			$text = $GLOBALS['TSFE']->cObj->substituteMarkerArray($this->mailTemplate['text'], $markerArray);
+			$subject = $this->ref->cObj->substituteMarkerArray($this->mailTemplate['subject'], $markerArray);
+			$text = $this->ref->cObj->substituteMarkerArray($this->mailTemplate['text'], $markerArray);
 
 			$extra = "From: ".$sender."\n";
 			$extra .= "X-Priority: 3\n";
@@ -312,40 +367,38 @@ class tx_redirectlog_pi1 {
 	 * @return	string		URL
 	 */
 	function get_page_url($pid,$addParams=array()){
-echo "test ";
 		global $TYPO3_CONF_VARS;
 
-		if(!is_object($GLOBALS['TSFE'])) {
-			require_once(PATH_t3lib.'class.t3lib_timetrack.php');
-			if(!is_object($GLOBALS['TT'])){
-				$GLOBALS['TT'] = new t3lib_timeTrack;
-				$GLOBALS['TT']->start();
-			}
-			require_once(PATH_t3lib.'class.t3lib_page.php');
-			require_once(PATH_t3lib.'class.t3lib_userauth.php');
-			require_once(PATH_tslib.'class.tslib_feuserauth.php');
-			require_once(PATH_t3lib.'class.t3lib_tstemplate.php');
-			require_once(PATH_t3lib.'class.t3lib_cs.php');
-
-			$temp_TSFEclassName = t3lib_div::makeInstanceClassName('tslib_fe');
-			$GLOBALS['TSFE'] = new $temp_TSFEclassName(
-				$TYPO3_CONF_VARS,
-				$pid,
-				0,
-				t3lib_div::_GP('no_cache'),
-				t3lib_div::_GP('cHash'),
-				t3lib_div::_GP('jumpurl'),
-				t3lib_div::_GP('MP'),
-				t3lib_div::_GP('RDCT')
-			);
+		require_once(PATH_t3lib.'class.t3lib_timetrack.php');
+		if(!is_object($GLOBALS['TT'])){
+			$GLOBALS['TT'] = new t3lib_timeTrack;
+			$GLOBALS['TT']->start();
 		}
+
+		require_once(PATH_t3lib.'class.t3lib_page.php');
+		require_once(PATH_t3lib.'class.t3lib_userauth.php');
+		require_once(PATH_tslib.'class.tslib_feuserauth.php');
+		require_once(PATH_t3lib.'class.t3lib_tstemplate.php');
+		require_once(PATH_t3lib.'class.t3lib_cs.php');
+
+		$temp_TSFEclassName = t3lib_div::makeInstanceClassName('tslib_fe');
+		$GLOBALS['TSFE'] = new $temp_TSFEclassName(
+			$TYPO3_CONF_VARS,
+			$pid,
+			0,
+			t3lib_div::_GP('no_cache'),
+			t3lib_div::_GP('cHash'),
+			t3lib_div::_GP('jumpurl'),
+			t3lib_div::_GP('MP'),
+			t3lib_div::_GP('RDCT')
+		);
 
 		#debug($GLOBALS['TSFE']);
 		$GLOBALS['TSFE']->id=$pid;
 		$GLOBALS['TSFE']->initFEuser();
-//		$GLOBALS['TSFE']->determineId(); //
+		$GLOBALS['TSFE']->determineId();
 		$GLOBALS['TSFE']->getPageAndRootline();
-//		$GLOBALS['TSFE']->initTemplate();//
+		$GLOBALS['TSFE']->initTemplate();
 		$GLOBALS['TSFE']->getConfigArray();
 
 		$page = $GLOBALS['TSFE']->sys_page->getPage($pid);
