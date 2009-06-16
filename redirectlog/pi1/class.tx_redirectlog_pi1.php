@@ -95,7 +95,7 @@ class tx_redirectlog_pi1 {
 		$this->extConf = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this->extKey]);
 		$this->debug = $this->extConf['debug'];
 		// set vars
-		$this->server_name = 'http://'.$_SERVER['SERVER_NAME'];
+		$this->server_name = t3lib_div::getIndpEnv('TYPO3_REQUEST_HOST');
 		// initiate db object
 		$this->db = $GLOBALS['TYPO3_DB'];
 	}
@@ -107,6 +107,7 @@ class tx_redirectlog_pi1 {
 	 * @param	array		$ref - Parent object
 	 * @return	void
 	 */
+
 	function main($param,$ref)	{
 //		var_dump($ref);
 		$this->init($ref);
@@ -156,14 +157,14 @@ class tx_redirectlog_pi1 {
 		if ((in_array($headertype, array('301', '302'))) && ($this->extConf['enable_warning_redirect'])) {
 			$this->sendMail($request_url,$replace_url,$headertype);
 			sleep(1);
-		} elseif ((in_array($headertype, array('403', '404'))) && ($this->extConf['enable_warning_notfound'])) {
+		} elseif ((in_array($headertype, array('403', '404', '503'))) && ($this->extConf['enable_warning_other'])) {
 			$this->sendMail($request_url,$replace_url,$headertype);
 		}
 
+		/*@todo Rene Überarbeiten*/
 		switch ($headertype) {
 			case '301':
 			case '302':
-			case '503':
 				$headertext = $this->headertext[$headertype];
 				header("$headertext");
 				header("Location:$this->server_name$replace_url");
@@ -171,6 +172,7 @@ class tx_redirectlog_pi1 {
 				break;
 			case '403':
 			case '404':
+			case '503':
 				$headertext = $this->headertext[$headertype];
 				header("$headertext");
 				$handle = fopen($this->server_name.$replace_url, "r");
@@ -339,10 +341,10 @@ class tx_redirectlog_pi1 {
 			$markerArray['###send_header###'] = $this->headertext[$headertype];
 			$markerArray['###date###'] = date("d.m.Y",$timestamp);
 			$markerArray['###time###'] = date("H:i:s",$timestamp);
-			$markerArray['###referer###'] = addslashes($_SERVER['HTTP_REFERER']);
-			$markerArray['###remote_browser###'] = $_SERVER['HTTP_USER_AGENT'];
-			$markerArray['###remote_ip###'] = $_SERVER['REMOTE_ADDR'];
-			$markerArray['###remote_name###'] = gethostbyaddr($_SERVER['REMOTE_ADDR']);
+			$markerArray['###referer###'] = addslashes(t3lib_div::getIndpEnv('HTTP_REFERER'));
+			$markerArray['###remote_browser###'] = t3lib_div::getIndpEnv('HTTP_USER_AGENT');
+			$markerArray['###remote_ip###'] = t3lib_div::getIndpEnv('REMOTE_ADDR');
+			$markerArray['###remote_name###'] = gethostbyaddr(t3lib_div::getIndpEnv('REMOTE_ADDR'));
 			if ($this->debug) {t3lib_div::debug($markerArray);}
 
 			$subject = $this->ref->cObj->substituteMarkerArray($this->mailTemplate['subject'], $markerArray);
