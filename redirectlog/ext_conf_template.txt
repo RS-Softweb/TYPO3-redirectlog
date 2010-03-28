@@ -1,5 +1,5 @@
 # cat=basic/enable/0; type=boolean; label= Debug enabled: If enabled, some debug messages are shown.
-debug = 1
+debug = 0
 
 # cat=basic/enable/101; type=boolean; label= Warning email on redirections: If enabled an email is send to the given adress.
 enable_warning_redirect = 0

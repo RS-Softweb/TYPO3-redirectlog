@@ -2,7 +2,7 @@
 /***************************************************************
 *  Copyright notice
 *
-*  (c) 2009 Rene <typo3@rs-softweb.de>
+*  (c) 2009 - 2010 Rene <typo3@rs-softweb.de>
 *  All rights reserved
 *
 *  This script is part of the TYPO3 project. The TYPO3 project is
@@ -107,11 +107,9 @@ class tx_redirectlog_pi1 {
 	 * @param	array		$ref - Parent object
 	 * @return	void
 	 */
-
 	function main($param,$ref)	{
-//		var_dump($ref);
 		$this->init($ref);
-		if ($this->debug) {t3lib_div::debug($param);}
+		if ($this->debug) {t3lib_div::debug($param, 'main $param');}
 
 		// first check for special sites (header code 403 or 503)
 		$headertype = $this->checkError($param);
@@ -212,7 +210,7 @@ class tx_redirectlog_pi1 {
 	function getError($headertype) {
 			$query = $this->db->exec_SELECTquery($this->fields_1_select, 'tx_redirectlog_urls', $this->fields_1_where.' AND old_url='.$headertype.'' );
 			$this->fillArray($query);
-			if ($this->debug) {t3lib_div::debug($this->arrReplacement);}
+			if ($this->debug) {t3lib_div::debug($this->arrReplacement,'function getError: $headertype='.$headertype.' var $this->arrReplacement');}
 	}
 
 
@@ -383,8 +381,23 @@ class tx_redirectlog_pi1 {
 		require_once(PATH_t3lib.'class.t3lib_tstemplate.php');
 		require_once(PATH_t3lib.'class.t3lib_cs.php');
 
-		$temp_TSFEclassName = t3lib_div::makeInstanceClassName('tslib_fe');
-		$GLOBALS['TSFE'] = new $temp_TSFEclassName(
+		// ***********************************
+		// Create $TSFE object (TSFE = TypoScript Front End)
+		// Connecting to database
+		// ***********************************
+		/*
+		$TSFE = t3lib_div::makeInstance('tslib_fe',
+			$TYPO3_CONF_VARS,
+			t3lib_div::_GP('id'),
+			t3lib_div::_GP('type'),
+			t3lib_div::_GP('no_cache'),
+			t3lib_div::_GP('cHash'),
+			t3lib_div::_GP('jumpurl'),
+			t3lib_div::_GP('MP'),
+			t3lib_div::_GP('RDCT')
+		);
+		*/
+		$GLOBALS['TSFE'] = t3lib_div::makeInstance('tslib_fe',
 			$TYPO3_CONF_VARS,
 			$pid,
 			0,
@@ -395,7 +408,6 @@ class tx_redirectlog_pi1 {
 			t3lib_div::_GP('RDCT')
 		);
 
-		#debug($GLOBALS['TSFE']);
 		$GLOBALS['TSFE']->id=$pid;
 		$GLOBALS['TSFE']->initFEuser();
 		$GLOBALS['TSFE']->determineId();
@@ -403,7 +415,10 @@ class tx_redirectlog_pi1 {
 		$GLOBALS['TSFE']->initTemplate();
 		$GLOBALS['TSFE']->getConfigArray();
 
+		$page = $GLOBALS['TSFE']->sys_page->getPage($pid, TRUE);
+		if ($this->debug) {t3lib_div::debug($page,'test1');}
 		$page = $GLOBALS['TSFE']->sys_page->getPage($pid);
+		if ($this->debug) {t3lib_div::debug($page,'test2');}
 		$url =  $GLOBALS['TSFE']->tmpl->linkData($page,"self",0,'',$overrideArray='',$addParams,$typeOverride='');
 		return $url['totalURL'];
 	}

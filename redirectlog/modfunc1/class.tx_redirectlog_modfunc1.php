@@ -2,7 +2,7 @@
 /***************************************************************
 *  Copyright notice
 *
-*  (c) 2009 Rene <typo3@rs-softweb.de>
+*  (c) 2009 - 2010 Rene <typo3@rs-softweb.de>
 *  All rights reserved
 *
 *  This script is part of the TYPO3 project. The TYPO3 project is
@@ -24,7 +24,15 @@
 /**
  * [CLASS/FUNCTION INDEX of SCRIPT]
  *
- * Hint: use extdeveval to insert/update function index above.
+ *
+ *
+ *   50: class tx_redirectlog_modfunc1 extends t3lib_extobjbase
+ *   57:     function modMenu()
+ *   70:     function main()
+ *
+ * TOTAL FUNCTIONS: 2
+ * (This index is automatically created/updated by the extension "extdeveval")
+ *
  */
 
 
@@ -42,10 +50,10 @@ require_once(PATH_t3lib.'class.t3lib_extobjbase.php');
 class tx_redirectlog_modfunc1 extends t3lib_extobjbase {
 
 					/**
-					 * Returns the module menu
-					 *
-					 * @return	Array with menuitems
-					 */
+ * Returns the module menu
+ *
+ * @return	Array		with menuitems
+ */
 					function modMenu()	{
 						global $LANG;
 
@@ -55,10 +63,10 @@ class tx_redirectlog_modfunc1 extends t3lib_extobjbase {
 					}
 
 					/**
-					 * Main method of the module
-					 *
-					 * @return	HTML
-					 */
+ * Main method of the module
+ *
+ * @return	HTML
+ */
 					function main()	{
 							// Initializes the module. Done in this function because we may need to re-initialize if data is submitted!
 						global $SOBE,$BE_USER,$LANG,$BACK_PATH,$TCA_DESCR,$TCA,$CLIENT,$TYPO3_CONF_VARS;
