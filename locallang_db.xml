@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<T3locallang>
+	<meta type="array">
+		<type>database</type>
+		<description>Language labels for database tables/fields belonging to extension 'redirectlog'</description>
+	</meta>
+	<data type="array">
+		<languageKey index="default" type="array">
+			<label index="moduleFunction.tx_redirectlog_modfunc1">Redirections log</label>
+			<label index="tx_redirectlog_urls">Redirections</label>
+			<label index="tx_redirectlog_urls.partitial">Use partitial match</label>
+			<label index="tx_redirectlog_urls.old_url">Old URL (or part of it)</label>
+			<label index="tx_redirectlog_urls.new_pageid">New page id (ignored if 'Use partitial match' is checked)</label>
+			<label index="tx_redirectlog_urls.new_url">New URL (or part of it)</label>
+			<label index="tx_redirectlog_urls.header.I.0">Permanent redirect (301)</label>
+			<label index="tx_redirectlog_urls.header.I.1">Temporary redirect (302)</label>
+			<label index="tx_redirectlog_urls.header.I.2">Forbidden (403)</label>
+			<label index="tx_redirectlog_urls.header.I.3">Page deleted (404)</label>
+			<label index="tx_redirectlog_urls.header.I.4">Service Unavailable (503)</label>
+			<label index="tx_redirectlog_urls.header">Send HTTP header</label>
+			<label index="tx_redirectlog_urls.language">Language</label>
+			<label index="tx_redirectlog_log">Redirections log</label>
+			<label index="tx_redirectlog_log.old_url">Old Url</label>
+			<label index="tx_redirectlog_log.new_url">New Url</label>
+			<label index="tx_redirectlog_log.referer">Referer</label>
+			<label index="tx_redirectlog_log.referer_extern">Referer extern</label>
+			<label index="tx_redirectlog_log.user_browser">Browser</label>
+			<label index="tx_redirectlog_log.user_ip">User IP</label>
+			<label index="tx_redirectlog_log.user_name">User computer name</label>
+			<label index="tx_redirectlog_log.user_spider">Is spider</label>
+		</languageKey>
+		<languageKey index="de" type="array">
+			<label index="moduleFunction.tx_redirectlog_modfunc1">Umleitungen Log</label>
+			<label index="tx_redirectlog_urls">Umleitungen</label>
+			<label index="tx_redirectlog_urls.partitial">Benutze teilweise Übereinstimmung</label>
+			<label index="tx_redirectlog_urls.old_url">Alte URL (oder ein Teil davon)</label>
+			<label index="tx_redirectlog_urls.new_pageid">Neue Seiten ID (Wird ignoriert wenn 'Benutze teilweise Übereinstimmung' aktiviert ist)</label>
+			<label index="tx_redirectlog_urls.new_url">Neue URL (oder ein Teil davon)</label>
+			<label index="tx_redirectlog_urls.header.I.0">Dauerhafte Umleitung (301)</label>
+			<label index="tx_redirectlog_urls.header.I.1">Zeitweise Umleitung (302)</label>
+			<label index="tx_redirectlog_urls.header.I.2">Verboten (403)</label>
+			<label index="tx_redirectlog_urls.header.I.3">Seite gelöscht (404)</label>
+			<label index="tx_redirectlog_urls.header.I.4">Service nicht verfügbar (503)</label>
+			<label index="tx_redirectlog_urls.header">Sende HTTP Header</label>
+			<label index="tx_redirectlog_urls.language">Sprache</label>
+			<label index="tx_redirectlog_log">Umleitungen Log</label>
+			<label index="tx_redirectlog_log.old_url">Alte Url</label>
+			<label index="tx_redirectlog_log.new_url">Neue Url</label>
+			<label index="tx_redirectlog_log.referer">Referer</label>
+			<label index="tx_redirectlog_log.referer_extern">Referer außerhalb</label>
+			<label index="tx_redirectlog_log.user_browser">Browser</label>
+			<label index="tx_redirectlog_log.user_ip">Benutzer IP</label>
+			<label index="tx_redirectlog_log.user_name">Benutzer Computername</label>
+			<label index="tx_redirectlog_log.user_spider">Ist Suchmaschine</label>
+		</languageKey>
+	</data>
+</T3locallang>
