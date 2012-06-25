@@ -41,6 +41,28 @@ Remote-Name: ###remote_name###
 <!-- ###TEMPLATE_MAIL_302### end -->
 
 
+<!-- ###TEMPLATE_MAIL_401### begin -->
+<!-- ###MAIL_SUBJECT### begin -->
+Zugriff verweigert - ###request### - ###remote_ip### - ###remote_name###
+<!-- ###MAIL_SUBJECT### end -->
+<!-- ###MAIL_TEXT### begin -->
+Zugriff umgeleitet
+
+von : ###request###
+nach: ###replace###
+
+Datum: ###date###
+Zeit : ###time###
+
+Referer : ###referer###
+
+Browser    : ###remote_browser###
+Remote-IP  : ###remote_ip###
+Remote-Name: ###remote_name###
+<!-- ###MAIL_TEXT### end -->
+<!-- ###TEMPLATE_MAIL_401### end -->
+
+
 <!-- ###TEMPLATE_MAIL_403### begin -->
 <!-- ###MAIL_SUBJECT### begin -->
 Zugriff verweigert - ###request### - ###remote_ip### - ###remote_name###

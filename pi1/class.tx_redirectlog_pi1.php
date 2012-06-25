@@ -59,11 +59,11 @@ class tx_redirectlog_pi1 {
 	var $extKey        = 'redirectlog';	// The extension key.
 	var $pi_checkCHash = true;
 
-	var $debug = False;
-
+	var $debug = false;
 	var $headertext = array(
 		'301'=>'HTTP/1.1 301 Moved Permanently',
 		'302'=>'HTTP/1.1 302 Moved Temporarily',
+		'401'=>'HTTP/1.1 401 Unauthorized',
 		'403'=>'HTTP/1.1 403 Forbidden',
 		'404'=>'HTTP/1.1 404 Not Found',
 		'503'=>'HTTP/1.1 503 Service Unavailable'
@@ -75,7 +75,6 @@ class tx_redirectlog_pi1 {
 	);
 	var $server_name = '';
 	var $server_path = '';
-
 	var $fields_1_select = 'old_url,new_url,new_pageid,header,partitial,starttime,endtime';
 	var $fields_1_where = 'hidden=0 AND deleted=0';
 
@@ -93,7 +92,10 @@ class tx_redirectlog_pi1 {
 		$this->ref->initTemplate();
 		// get the extension-manager configuration
 		$this->extConf = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this->extKey]);
-		$this->debug = $this->extConf['debug'];
+
+		if (($this->extConf['debug']==true)&&($_SERVER['REMOTE_ADDR']=='95.208.243.245')) {
+			$this->debug = $this->extConf['debug'];
+		}
 		// set vars
 		$this->server_name = t3lib_div::getIndpEnv('TYPO3_REQUEST_HOST');
 		// initiate db object
@@ -109,16 +111,29 @@ class tx_redirectlog_pi1 {
 	 */
 	function main($param,$ref)	{
 		$this->init($ref);
-		if ($this->debug) {t3lib_div::debug($param, 'main $param');}
+		if ($this->debug) {t3lib_utility_Debug::debug($param, 'main $param');}
 
 		// first check for special sites (header code 403 or 503)
 		$headertype = $this->checkError($param);
+		if ($this->debug) {t3lib_utility_Debug::debug($headertype, 'main $headertype');}
 
 		// if special site requested
-		if (in_array($headertype, array('403', '503'))) {
-			// get the redirections from db
-			$this->getError($headertype);
-
+		if (in_array($headertype, array('403'))) {
+			$GLOBALS['TSFE']->initTemplate();
+			$GLOBALS['TSFE']->getConfigArray();
+			$tsfe_config = $GLOBALS['TSFE']->config['config'];
+			if ($tsfe_config['typolinkLinkAccessRestrictedPages']>0) {
+				$loginpage = $this->get_page_url($tsfe_config['typolinkLinkAccessRestrictedPages'],'redirect_url='.$param['currentUrl']);
+				$request_url = $param['currentUrl'];
+				$replace_url = '/'.$loginpage;
+				if ($this->debug) {$headertype = '401';}
+			} else {
+				$this->getErrorPage($headertype);
+				$request_url = $param['currentUrl'];
+				$replace_url = $this->arrReplacement['Replace'][0];
+			}
+		} elseif (in_array($headertype, array('403','503'))) {
+			$this->getErrorPage($headertype);
 			$request_url = $param['currentUrl'];
 			$replace_url = $this->arrReplacement['Replace'][0];
 		} else {
@@ -147,7 +162,7 @@ class tx_redirectlog_pi1 {
 
 			if (!($umleitung)) {
 				$this->clearArray();
-				$this->getError($headertype);
+				$this->getErrorPage($headertype);
 				$replace_url = $this->arrReplacement['Replace'][0];
 			}
 		}
@@ -155,11 +170,11 @@ class tx_redirectlog_pi1 {
 		if ((in_array($headertype, array('301', '302'))) && ($this->extConf['enable_warning_redirect'])) {
 			$this->sendMail($request_url,$replace_url,$headertype);
 			sleep(1);
-		} elseif ((in_array($headertype, array('403', '404', '503'))) && ($this->extConf['enable_warning_other'])) {
+		} elseif ((in_array($headertype, array('401', '403', '404', '503'))) && ($this->extConf['enable_warning_other'])) {
 			$this->sendMail($request_url,$replace_url,$headertype);
 		}
-
-		/*@todo Rene Überarbeiten*/
+		if ($this->debug) {t3lib_utility_Debug::debug($_SERVER, 'main $_SERVER');}
+		/*@todo Rene ï¿½berarbeiten*/
 		switch ($headertype) {
 			case '301':
 			case '302':
@@ -168,11 +183,20 @@ class tx_redirectlog_pi1 {
 				header("Location:$this->server_name$replace_url");
 				header("Connection: close");
 				break;
+			case '401':
+				$headertext = $this->headertext[$headertype];
+				header("$headertext");
+				header("Location:$this->server_name$replace_url");
+				header("Connection: close");
+				break;
 			case '403':
 			case '404':
 			case '503':
+ini_set('user_agent', 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)');
+ini_set('user_agent', $_SERVER["HTTP_USER_AGENT"]);
 				$headertext = $this->headertext[$headertype];
 				header("$headertext");
+				header('user-agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)'); 
 				$handle = fopen($this->server_name.$replace_url, "r");
 				if ($handle) {
 					while (!feof($handle)) {
@@ -207,10 +231,10 @@ class tx_redirectlog_pi1 {
 	 * @param	array		Array with link params
 	 * @return	void
 	 */
-	function getError($headertype) {
+	function getErrorPage($headertype) {
 			$query = $this->db->exec_SELECTquery($this->fields_1_select, 'tx_redirectlog_urls', $this->fields_1_where.' AND old_url='.$headertype.'' );
 			$this->fillArray($query);
-			if ($this->debug) {t3lib_div::debug($this->arrReplacement,'function getError: $headertype='.$headertype.' var $this->arrReplacement');}
+			if ($this->debug) {t3lib_utility_Debug::debug($this->arrReplacement,'function getError: $headertype='.$headertype.' var $this->arrReplacement');}
 	}
 
 
@@ -287,9 +311,9 @@ class tx_redirectlog_pi1 {
 			$this->mailTemplate['all'] = $this->ref->cObj->getSubpart($this->templateCode, '###TEMPLATE_MAIL_'.$headertype.'###');
 			$this->mailTemplate['subject'] = $this->ref->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_SUBJECT###');
 			$this->mailTemplate['text'] = $this->ref->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_TEXT###');
-			if ($this->debug) {t3lib_div::debug($this->mailTemplate);}
+			if ($this->debug) {t3lib_utility_Debug::debug($this->mailTemplate);}
 		} else {
-			if ($this->debug) {t3lib_div::debug('No template code found!');}
+			if ($this->debug) {t3lib_utility_Debug::debug('No template code found!');}
 		}
 		if (($this->mailTemplate['subject']=='') || ($this->mailTemplate['text']=='')) {
 			if (($this->mailTemplate['subject']=='') && ($this->debug)) {
@@ -343,7 +367,7 @@ class tx_redirectlog_pi1 {
 			$markerArray['###remote_browser###'] = t3lib_div::getIndpEnv('HTTP_USER_AGENT');
 			$markerArray['###remote_ip###'] = t3lib_div::getIndpEnv('REMOTE_ADDR');
 			$markerArray['###remote_name###'] = gethostbyaddr(t3lib_div::getIndpEnv('REMOTE_ADDR'));
-			if ($this->debug) {t3lib_div::debug($markerArray);}
+			if ($this->debug) {t3lib_utility_Debug::debug($markerArray);}
 
 			$subject = $this->ref->cObj->substituteMarkerArray($this->mailTemplate['subject'], $markerArray);
 			$text = $this->ref->cObj->substituteMarkerArray($this->mailTemplate['text'], $markerArray);
@@ -360,13 +384,13 @@ class tx_redirectlog_pi1 {
 	}
 
 	/**
-	 * Generates an URL throw an FE Object
+	 * Generates an URL through an FE Object
 	 *
 	 * @param	integer		page uid
 	 * @param	array		additionaly parameters
 	 * @return	string		URL
 	 */
-	function get_page_url($pid,$addParams=array()){
+	function get_page_url($pid,$addParams=''){
 		global $TYPO3_CONF_VARS;
 
 		require_once(PATH_t3lib.'class.t3lib_timetrack.php');
@@ -414,12 +438,17 @@ class tx_redirectlog_pi1 {
 		$GLOBALS['TSFE']->getPageAndRootline();
 		$GLOBALS['TSFE']->initTemplate();
 		$GLOBALS['TSFE']->getConfigArray();
-
-		$page = $GLOBALS['TSFE']->sys_page->getPage($pid, TRUE);
-		if ($this->debug) {t3lib_div::debug($page,'test1');}
-		$page = $GLOBALS['TSFE']->sys_page->getPage($pid);
-		if ($this->debug) {t3lib_div::debug($page,'test2');}
+		$GLOBALS['TSFE']->sys_page->init($GLOBALS['TSFE']->showHiddenPage);
+//		$GLOBALS['TSFE']->sys_page->init(1);
+//		if ($this->debug) {t3lib_utility_Debug::debug($GLOBALS['TSFE'],'get_page_url -- $TSFE');}
+//		if ($this->debug) {t3lib_utility_Debug::debug(0,'get_page_url -- $showHiddenPage');}
+//exit;
+		$page = $GLOBALS['TSFE']->sys_page->getPage_noCheck($pid);
+		if ($this->debug) {t3lib_utility_Debug::debug($GLOBALS['TSFE']->config['config'],'get_page_url -- $page');}
+//exit;//		$page = $GLOBALS['TSFE']->sys_page->getPage($pid);
+//		if ($this->debug) {t3lib_utility_Debug::debug($page,'test2');}
 		$url =  $GLOBALS['TSFE']->tmpl->linkData($page,"self",0,'',$overrideArray='',$addParams,$typeOverride='');
+		if ($this->debug) {t3lib_utility_Debug::debug($url['totalURL'],'get_page_url -- totalurl');}
 		return $url['totalURL'];
 	}
 }
