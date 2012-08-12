@@ -2,7 +2,7 @@
 /***************************************************************
 *  Copyright notice
 *
-*  (c) 2009 - 2010 Rene <typo3@rs-softweb.de>
+*  (c) 2009 - 2012 Rene <typo3@rs-softweb.de>
 *  All rights reserved
 *
 *  This script is part of the TYPO3 project. The TYPO3 project is
@@ -27,16 +27,16 @@
  *
  *
  *   56: class tx_redirectlog_pi1
- *   89:     function init($ref)
- *  110:     function main($param,$ref)
- *  198:     function checkError($param)
- *  210:     function getError($headertype)
- *  224:     function isValid($starttime, $endtime)
- *  243:     function fillArray($query)
- *  268:     function clearArray()
- *  281:     function getMailTemplate($headertype)
- *  316:     function sendMail($request_url,$replace_url,$headertype)
- *  369:     function get_page_url($pid,$addParams=array())
+ *   88:     function init($ref)
+ *  115:     function main($param,$ref)
+ *  224:     function checkError($param)
+ *  236:     function getErrorPage($headertype)
+ *  250:     function isValid($starttime, $endtime)
+ *  268:     function fillArray($query)
+ *  293:     function clearArray()
+ *  306:     function getMailTemplate($headertype)
+ *  340:     function sendMail($request_url,$replace_url,$headertype)
+ *  392:     function get_page_url($pid,$addParams='')
  *
  * TOTAL FUNCTIONS: 10
  * (This index is automatically created/updated by the extension "extdeveval")
@@ -92,10 +92,13 @@ class tx_redirectlog_pi1 {
 		$this->ref->initTemplate();
 		// get the extension-manager configuration
 		$this->extConf = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this->extKey]);
+		$this->devIPmask = $GLOBALS['TYPO3_CONF_VARS']['SYS']['devIPmask'];
+//		t3lib_utility_Debug::debug($this->extConf, '$this->extConf');;
 
-		if (($this->extConf['debug']==true)&&($_SERVER['REMOTE_ADDR']=='95.208.243.245')) {
+		if (($this->extConf['debug']==true)&&(t3lib_div::cmpIP($_SERVER['REMOTE_ADDR'],$this->devIPmask))) {
 			$this->debug = $this->extConf['debug'];
 		}
+		t3lib_utility_Debug::debug($this->debug, '$this->debug');;
 		// set vars
 		$this->server_name = t3lib_div::getIndpEnv('TYPO3_REQUEST_HOST');
 		// initiate db object
@@ -173,7 +176,7 @@ class tx_redirectlog_pi1 {
 		} elseif ((in_array($headertype, array('401', '403', '404', '503'))) && ($this->extConf['enable_warning_other'])) {
 			$this->sendMail($request_url,$replace_url,$headertype);
 		}
-		if ($this->debug) {t3lib_utility_Debug::debug($_SERVER, 'main $_SERVER');}
+
 		/*@todo Rene �berarbeiten*/
 		switch ($headertype) {
 			case '301':
@@ -192,11 +195,10 @@ class tx_redirectlog_pi1 {
 			case '403':
 			case '404':
 			case '503':
-ini_set('user_agent', 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)');
-ini_set('user_agent', $_SERVER["HTTP_USER_AGENT"]);
+				ini_set('user_agent', $_SERVER["HTTP_USER_AGENT"]);
 				$headertext = $this->headertext[$headertype];
 				header("$headertext");
-				header('user-agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)'); 
+				header('user-agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)');
 				$handle = fopen($this->server_name.$replace_url, "r");
 				if ($handle) {
 					while (!feof($handle)) {
@@ -255,7 +257,6 @@ ini_set('user_agent', $_SERVER["HTTP_USER_AGENT"]);
 		} else {
 			return False;
 		}
-
 	}
 
 	/**
@@ -311,7 +312,6 @@ ini_set('user_agent', $_SERVER["HTTP_USER_AGENT"]);
 			$this->mailTemplate['all'] = $this->ref->cObj->getSubpart($this->templateCode, '###TEMPLATE_MAIL_'.$headertype.'###');
 			$this->mailTemplate['subject'] = $this->ref->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_SUBJECT###');
 			$this->mailTemplate['text'] = $this->ref->cObj->getSubpart($this->mailTemplate['all'], '###MAIL_TEXT###');
-			if ($this->debug) {t3lib_utility_Debug::debug($this->mailTemplate);}
 		} else {
 			if ($this->debug) {t3lib_utility_Debug::debug('No template code found!');}
 		}
@@ -367,7 +367,6 @@ ini_set('user_agent', $_SERVER["HTTP_USER_AGENT"]);
 			$markerArray['###remote_browser###'] = t3lib_div::getIndpEnv('HTTP_USER_AGENT');
 			$markerArray['###remote_ip###'] = t3lib_div::getIndpEnv('REMOTE_ADDR');
 			$markerArray['###remote_name###'] = gethostbyaddr(t3lib_div::getIndpEnv('REMOTE_ADDR'));
-			if ($this->debug) {t3lib_utility_Debug::debug($markerArray);}
 
 			$subject = $this->ref->cObj->substituteMarkerArray($this->mailTemplate['subject'], $markerArray);
 			$text = $this->ref->cObj->substituteMarkerArray($this->mailTemplate['text'], $markerArray);
@@ -444,7 +443,7 @@ ini_set('user_agent', $_SERVER["HTTP_USER_AGENT"]);
 //		if ($this->debug) {t3lib_utility_Debug::debug(0,'get_page_url -- $showHiddenPage');}
 //exit;
 		$page = $GLOBALS['TSFE']->sys_page->getPage_noCheck($pid);
-		if ($this->debug) {t3lib_utility_Debug::debug($GLOBALS['TSFE']->config['config'],'get_page_url -- $page');}
+//		if ($this->debug) {t3lib_utility_Debug::debug($GLOBALS['TSFE']->config['config'],'get_page_url -- $page');}
 //exit;//		$page = $GLOBALS['TSFE']->sys_page->getPage($pid);
 //		if ($this->debug) {t3lib_utility_Debug::debug($page,'test2');}
 		$url =  $GLOBALS['TSFE']->tmpl->linkData($page,"self",0,'',$overrideArray='',$addParams,$typeOverride='');
