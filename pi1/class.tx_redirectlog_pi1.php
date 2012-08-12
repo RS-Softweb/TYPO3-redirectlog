@@ -93,12 +93,11 @@ class tx_redirectlog_pi1 {
 		// get the extension-manager configuration
 		$this->extConf = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf'][$this->extKey]);
 		$this->devIPmask = $GLOBALS['TYPO3_CONF_VARS']['SYS']['devIPmask'];
-//		t3lib_utility_Debug::debug($this->extConf, '$this->extConf');;
 
 		if (($this->extConf['debug']==true)&&(t3lib_div::cmpIP($_SERVER['REMOTE_ADDR'],$this->devIPmask))) {
 			$this->debug = $this->extConf['debug'];
 		}
-		t3lib_utility_Debug::debug($this->debug, '$this->debug');;
+
 		// set vars
 		$this->server_name = t3lib_div::getIndpEnv('TYPO3_REQUEST_HOST');
 		// initiate db object
