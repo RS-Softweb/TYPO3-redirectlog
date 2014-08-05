@@ -72,12 +72,12 @@ class tx_redirectlog_modfunc1 extends t3lib_extobjbase {
 						global $SOBE,$BE_USER,$LANG,$BACK_PATH,$TCA_DESCR,$TCA,$CLIENT,$TYPO3_CONF_VARS;
 
 						$theOutput.=$this->pObj->doc->spacer(5);
-						$theOutput.=$this->pObj->doc->section($LANG->getLL("title"),"Dummy content here...",0,1);
+						$theOutput.=$this->pObj->doc->section($LANG->getLL("title"), "Dummy content here...", 0, 1);
 
 						$menu=array();
 						$menu[]=t3lib_BEfunc::getFuncCheck($this->pObj->id,"SET[tx_redirectlog_modfunc1_check]",$this->pObj->MOD_SETTINGS["tx_redirectlog_modfunc1_check"]).$LANG->getLL("checklabel");
 						$theOutput.=$this->pObj->doc->spacer(5);
-						$theOutput.=$this->pObj->doc->section("Menu",implode(" - ",$menu),0,1);
+						$theOutput.=$this->pObj->doc->section("Menu", implode(" - ",$menu),0,1);
 
 						return $theOutput;
 					}
